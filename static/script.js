@@ -58,6 +58,45 @@ document.addEventListener('click', (e) => {
     }
 });
 
+// Profile Dropdown Logic
+const userProfileBtn = document.getElementById('user-profile-btn');
+const profileDropdown = document.getElementById('profile-dropdown');
+const dropdownSettingsBtn = document.getElementById('dropdown-settings-btn');
+
+if (userProfileBtn && profileDropdown) {
+    userProfileBtn.addEventListener('click', (e) => {
+        // Prevent click from propagating and instantly closing the dropdown
+        e.stopPropagation();
+        profileDropdown.classList.toggle('active');
+    });
+
+    // Close dropdown when clicking anywhere else
+    document.addEventListener('click', (e) => {
+        if (!profileDropdown.contains(e.target)) {
+            profileDropdown.classList.remove('active');
+        }
+    });
+}
+
+// Route Settings click from dropdown
+if (dropdownSettingsBtn) {
+    dropdownSettingsBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        profileDropdown.classList.remove('active');
+
+        mainView.style.display = 'none';
+        if (eventsView) eventsView.style.display = 'none';
+        if (studentsView) studentsView.style.display = 'none';
+        if (reportsView) reportsView.style.display = 'none';
+        if (settingsView) settingsView.style.display = 'block';
+
+        // Update active class in sidebar to show settings selected
+        navLinks.forEach(l => l.parentElement.classList.remove('active'));
+        const settingsLink = document.querySelector('.sidebar-nav a[data-page="settings"]');
+        if (settingsLink) settingsLink.parentElement.classList.add('active');
+    });
+}
+
 // Active Link Handling
 navLinks.forEach(link => {
     link.addEventListener('click', (e) => {

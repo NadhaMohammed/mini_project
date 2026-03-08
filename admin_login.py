@@ -12,6 +12,20 @@ from googleapiclient.discovery import build
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
+# ===== Email Configuration =====
+from flask_mail import Mail, Message
+from dotenv import load_dotenv
+
+load_dotenv()
+
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.getenv("MAIL_USERNAME")
+app.config['MAIL_PASSWORD'] = os.getenv("MAIL_PASSWORD")
+
+mail = Mail(app)
+
 # Configuration for file uploads
 UPLOAD_FOLDER = os.path.join('static', 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
@@ -49,11 +63,102 @@ def extract_sheet_id(sheet_url):
         print(f"Error extracting sheet ID: {e}")
         return None
 
+def init_subscribers_table():
+    db = get_db_connection()
+    if db:
+        try:
+            cursor = db.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS subscribers (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    status ENUM('active', 'unsubscribed') DEFAULT 'active'
+                )
+            """)
+            db.commit()
+        except Error as e:
+            print(f"Error creating subscribers table: {e}")
+        finally:
+            cursor.close()
+            db.close()
+
+# Initialize DB tables on startup
+init_subscribers_table()
+
+def send_new_event_email(event_name, event_date, event_description):
+    """Retrieves all active subscribers and sends them an email about the new event."""
+    with app.app_context():
+        db = get_db_connection()
+        if not db:
+            return False
+            
+        try:
+            cursor = db.cursor(dictionary=True)
+            cursor.execute("SELECT email, name FROM subscribers WHERE status = 'active'")
+            subscribers = cursor.fetchall()
+            
+            if not subscribers:
+                return True
+                
+            recipients = [sub['email'] for sub in subscribers]
+            
+            msg = Message(
+                subject=f"New Event Created: {event_name}!",
+                sender=app.config.get("MAIL_USERNAME"),
+                bcc=recipients
+            )
+            
+            msg.html = f"""
+            <h2>New Event: {event_name}</h2>
+            <p><strong>Date:</strong> {event_date}</p>
+            <p>{event_description}</p>
+            <br>
+            <p>Visit the EventHub website to learn more and register!</p>
+            """
+            
+            mail.send(msg)
+            return True
+        except Exception as e:
+            print(f"Error sending email notifications: {e}")
+            return False
+        finally:
+            if db.is_connected():
+                db.close()
+
 # ===== Public Routes =====
 @app.route("/")
 def home():
     """Serves the public facing event hub website"""
     return render_template("index.html")
+
+@app.route("/subscribe", methods=["POST"])
+def subscribe():
+    data = request.json
+    name = data.get("name")
+    email = data.get("email")
+    
+    if not name or not email:
+        return jsonify({"error": "Name and email are required"}), 400
+        
+    db = get_db_connection()
+    if db is None:
+        return jsonify({"error": "Database connection error"}), 500
+        
+    try:
+        cursor = db.cursor()
+        query = "INSERT INTO subscribers (name, email) VALUES (%s, %s)"
+        cursor.execute(query, (name, email))
+        db.commit()
+        return jsonify({"success": True, "message": "Successfully subscribed to notifications!"})
+    except Error as e:
+        if e.errno == 1062: # Duplicate entry
+            return jsonify({"error": "This email is already subscribed."}), 400
+        return jsonify({"error": "An error occurred while subscribing."}), 500
+    finally:
+        if db.is_connected():
+            db.close()
 
 @app.route("/event-details.html")
 def event_details():
@@ -62,8 +167,8 @@ def event_details():
 # ===== Admin Authentication Routes =====
 @app.route("/admin")
 def admin_login_page():
-    if "admin" in session:
-        return redirect(url_for("dashboard"))
+    # Force a fresh login anytime the admin login page is visited (prevent auto-login)
+    session.pop("admin", None)
     return render_template("admin_login.html")
 
 @app.route("/login", methods=["POST"])
@@ -179,6 +284,12 @@ def create_event():
         cursor.execute(query, (name, date, category, organizer, status, description, image_path, registration_link, sheet_link))
         db.commit()
         new_id = cursor.lastrowid
+        
+        # Trigger email notification
+        try:
+            send_new_event_email(name, date, description)
+        except Exception as email_err:
+            print(f"Failed to send email updates: {email_err}")
         
         return jsonify({"success": True, "message": "Event created", "id": new_id})
     except Error as e:

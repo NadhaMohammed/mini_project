@@ -226,16 +226,52 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (form) {
-        form.onsubmit = function (e) {
+        form.onsubmit = async function (e) {
             e.preventDefault();
             const nameField = form.querySelector('input[type="text"]');
-            if (nameField) {
-                alert(`Thanks ${nameField.value}! You have successfully subscribed to event notifications.`);
+            const emailField = form.querySelector('input[type="email"]');
+            const submitBtn = form.querySelector('.btn-submit');
+
+            if (nameField && emailField) {
+                // Disable button and show loading state
+                const originalText = submitBtn.textContent;
+                submitBtn.textContent = 'Subscribing...';
+                submitBtn.disabled = true;
+
+                try {
+                    const response = await fetch('http://127.0.0.1:5000/subscribe', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            name: nameField.value.trim(),
+                            email: emailField.value.trim()
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        alert(`Success: ${data.message}`);
+                        form.reset();
+                        modal.style.display = "none";
+                    } else {
+                        alert(`Error: ${data.error}`);
+                    }
+                } catch (error) {
+                    console.error('Subscription error:', error);
+                    alert('A network error occurred. Please check if the server is running and try again.');
+                } finally {
+                    // Restore button state
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                }
             } else {
-                alert('Success!');
+                alert('Success! (Frontend Mock)');
+                modal.style.display = "none";
+                form.reset();
             }
-            modal.style.display = "none";
-            form.reset();
         }
     }
 });
