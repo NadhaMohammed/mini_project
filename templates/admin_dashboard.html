@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="../static/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
     <!-- Chart.js for Reports -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -93,15 +93,15 @@
                         <img src="https://ui-avatars.com/api/?name=Admin+User&background=0D8ABC&color=fff"
                             alt="Admin Profile">
                         <div class="user-info">
-                            <span class="name">Admin User</span>
+                            <span class="name">{{ session.get('admin', 'Admin') }}</span>
                             <span class="role">Administrator</span>
                         </div>
 
                         <!-- Profile Dropdown -->
                         <div class="profile-dropdown" id="profile-dropdown">
                             <div class="dropdown-header">
-                                <h4>Admin User</h4>
-                                <p>nithinsamuel11@gmail.com</p>
+                                <h4>{{ session.get('admin', 'Admin') }}</h4>
+                                <p>Administrator</p>
                             </div>
                             <ul class="dropdown-list">
                                 <li><a href="#" id="dropdown-settings-btn"><i class="fa-solid fa-gear"></i> Settings</a>
@@ -123,8 +123,13 @@
 
             <!-- Events Content -->
             <div class="content-wrapper" id="events-view">
-                <div class="page-header">
-                    <h1>Events Overview</h1>
+                <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                    <div>
+                        <h1>Events Overview</h1>
+                        <div style="margin-top: 10px; display: inline-block; background-color: var(--primary-color); color: white; padding: 6px 12px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                            Your College Code: <span style="letter-spacing: 1px; font-family: monospace; font-size: 1rem;">{{ session.get('college_code', '') }}</span>
+                        </div>
+                    </div>
                     <button class="btn-primary" id="create-event-btn">
                         <i class="fa-solid fa-plus"></i> Create New Event
                     </button>
@@ -139,7 +144,7 @@
                         <div class="card-info">
                             <h3>Total Events</h3>
                             <p class="number" id="total-events-count">0</p>
-                            <span class="trend up"><i class="fa-solid fa-arrow-up"></i> 12% this month</span>
+                            <span class="trend">All time</span>
                         </div>
                     </div>
                     <div class="metric-card">
@@ -149,7 +154,7 @@
                         <div class="card-info">
                             <h3>Upcoming Events</h3>
                             <p class="number" id="upcoming-events-count">0</p>
-                            <span class="trend up"><i class="fa-solid fa-arrow-up"></i> 5% this week</span>
+                            <span class="trend">Currently scheduled</span>
                         </div>
                     </div>
                 </div>
@@ -390,7 +395,7 @@
         </div>
     </div>
 
-    <script src="../static/script.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 
 </html>

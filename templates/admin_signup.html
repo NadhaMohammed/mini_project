@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Signup - Event Hub</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin_login.css') }}">
+    <style>
+        .login-link {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+        .login-link a {
+            color: #0D8ABC;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="profile">
+            <img src="{{ url_for('static', filename='admin.jpeg') }}" alt="Admin Icon">
+        </div>
+
+        <div class="heading">
+            <h3>CREATE COLLEGE ACCOUNT</h3>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="error-message">
+            <i class="fas fa-exclamation-circle"></i>
+            {{ messages[0] }}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="/signup" class="login-form">
+
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input class="username" id="username" name="username" type="text" placeholder="Choose a username" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input class="password" id="password" name="password" type="password" placeholder="Create a password" required>
+            </div>
+
+            <div class="form-group">
+                <label for="college_name">College Name</label>
+                <input class="username" id="college_name" name="college_name" type="text" placeholder="e.g. Example University" required>
+            </div>
+
+            <div class="form-group">
+                <label for="college_code">Custom College Code (Optional)</label>
+                <input class="username" id="college_code" name="college_code" type="text" placeholder="e.g. MIT-2026">
+                <small style="display: block; margin-top: 5px; color: #666; font-size: 0.8rem;">Leave blank to auto-generate a random 6-character code.</small>
+            </div>
+
+            <button class="button" type="submit">Sign Up</button>
+            
+            <div class="login-link">
+                Already have an account? <a href="/admin">Log in here</a>
+            </div>
+        </form>
+    </div>
+</body>
+
+</html>

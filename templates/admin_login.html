@@ -5,13 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Login - Event Hub</title>
-    <link rel="stylesheet" href="../static/admin_login.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin_login.css') }}">
 </head>
 
 <body>
     <div class="container">
         <div class="profile">
-            <img src="../static/admin.jpeg" alt="Admin Icon">
+            <img src="{{ url_for('static', filename='admin.jpeg') }}" alt="Admin Icon">
         </div>
 
         <div class="heading">
@@ -41,6 +41,10 @@
             </div>
 
             <button class="button" type="submit">Sign In</button>
+            
+            <div style="text-align: center; margin-top: 15px; font-size: 0.9rem;">
+                New college admin? <a href="/signup" style="color: #0D8ABC; text-decoration: none; font-weight: 600;">Create an account</a>
+            </div>
         </form>
     </div>
 </body>

@@ -1,3 +1,11 @@
+// HTML Escape Helper (prevents XSS)
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    const div = document.createElement('div');
+    div.appendChild(document.createTextNode(String(str)));
+    return div.innerHTML;
+}
+
 // DOM Elements
 const sidebar = document.getElementById('sidebar');
 const openSidebarBtn = document.getElementById('open-sidebar');
@@ -219,14 +227,14 @@ function renderEvents(limit = 5, data = events) { // Default limit to 5
                         ${imgHtml}
                     </div>
                     <div>
-                        <div class="event-name">${event.name}</div>
-                        <div class="event-cat">${event.category}</div>
+                        <div class="event-name">${escapeHtml(event.name)}</div>
+                        <div class="event-cat">${escapeHtml(event.category)}</div>
                     </div>
                 </div>
             </td>
-            <td>${event.organizer}</td>
+            <td>${escapeHtml(event.organizer)}</td>
             <td>${formattedDate}</td>
-            <td><span class="status-badge ${statusClass}">${event.status}</span></td>
+            <td><span class="status-badge ${statusClass}">${escapeHtml(event.status)}</span></td>
             <td>
                 <div class="action-buttons">
                     <button class="icon-btn edit" onclick="editEvent(${event.id})"><i class="fa-solid fa-pen"></i></button>
@@ -414,7 +422,7 @@ function renderStudentsEventsGrid() {
         const cardHtml = `
             <div style="background: white; border-radius: 12px; border: 1px solid var(--border-color); padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); display: flex; flex-direction: column; gap: 15px;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <h3 style="margin: 0; font-size: 1.2rem; color: var(--text-color);">${event.name}</h3>
+                    <h3 style="margin: 0; font-size: 1.2rem; color: var(--text-color);">${escapeHtml(event.name)}</h3>
                     <span style="background: ${styles.bg}; color: ${styles.color}; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">${event.category}</span>
                 </div>
                 <div style="color: var(--text-light); font-size: 0.9rem; display: flex; align-items: center; gap: 8px;">
@@ -441,7 +449,6 @@ window.openStudentsModal = function (eventId, eventName) {
 if (closeStudentsModalBtn) {
     closeStudentsModalBtn.addEventListener('click', () => {
         manageStudentsModal.classList.remove('active');
-        addStudentForm.reset();
     });
 }
 
@@ -450,7 +457,6 @@ if (manageStudentsModal) {
     manageStudentsModal.addEventListener('click', (e) => {
         if (e.target === manageStudentsModal) {
             manageStudentsModal.classList.remove('active');
-            addStudentForm.reset();
         }
     });
 }
@@ -472,8 +478,8 @@ async function fetchStudents(eventId) {
             const isAttended = student.attended ? 'checked' : '';
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><strong>${student.student_name}</strong></td>
-                <td>${student.student_email}</td>
+                <td><strong>${escapeHtml(student.student_name)}</strong></td>
+                <td>${escapeHtml(student.student_email)}</td>
                 <td style="text-align: center;">
                     <input type="checkbox" class="attendance-checkbox" data-student-id="${student.id}" style="width: 18px; height: 18px; cursor: pointer;" 
                            ${isAttended}>
@@ -608,7 +614,7 @@ async function fetchAndRenderReports() {
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><strong>${report.name}</strong></td>
+                <td><strong>${escapeHtml(report.name)}</strong></td>
                 <td><span style="background: var(--light-bg); padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;">${report.category}</span></td>
                 <td style="text-align: center;">${report.total_registered}</td>
                 <td style="text-align: center; color: var(--primary-color);"><strong>${report.total_attended}</strong></td>

@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="../static/public_styles.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='public_styles.css') }}">
 </head>
 
 <body>
@@ -26,7 +26,10 @@
                 <li><a href="#contact">Contact</a></li>
             </ul>
         </nav>
-        <div class="auth-buttons">
+        <div class="auth-buttons" style="display: flex; gap: 10px; align-items: center;">
+            <select id="college-select" class="btn btn-secondary" style="background: rgba(0, 84, 97, 0.95); border: 1px solid rgba(255, 255, 255, 0.2); color: rgba(255, 255, 255, 0.85); font-size: 1.05rem; padding: 8px 15px; border-radius: 5px; font-weight: 500; cursor: pointer; outline: none; margin-right: 10px;">
+                <option value="" selected>All Colleges</option>
+            </select>
             <button id="get-notified-btn" class="btn btn-primary">Get Notified</button>
         </div>
     </header>
@@ -93,13 +96,13 @@
             <p>Get reminders about events tailored for you.</p>
             <form id="notify-form" class="modern-form">
                 <div class="input-group">
-                    <input type="text" placeholder="Your Name" required>
+                    <input type="text" name="name" placeholder="Your Name" required>
                 </div>
                 <div class="input-group">
-                    <input type="email" placeholder="Your Email" required>
+                    <input type="email" name="email" placeholder="Your Email" required>
                 </div>
                 <div class="input-group">
-                    <select required>
+                    <select name="department" required>
                         <option value="" disabled selected>Select Department/Year</option>
                         <option value="CSE">Computer Science (CSE)</option>
                         <option value="ECE">Electronics (ECE)</option>
@@ -114,13 +117,48 @@
         </div>
     </div>
 
+    <!-- College Code Modal -->
+    <div id="college-code-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center;">
+        <div class="modal-content" style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+            <h2 style="margin-bottom: 15px; color: var(--text-main);">Welcome to EventHub</h2>
+            
+            <div id="initial-choice-section">
+                <p style="margin-bottom: 25px; color: var(--text-muted);">Please select your role to continue.</p>
+                
+                <button type="button" class="btn btn-primary" onclick="document.getElementById('initial-choice-section').style.display='none'; document.getElementById('student-code-section').style.display='block';" style="width: 100%; padding: 14px; border-radius: 8px; font-size: 1.05rem; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    I'm a Student
+                </button>
+                
+                <button type="button" class="btn btn-secondary" onclick="window.location.href='/signup';" style="width: 100%; padding: 14px; border-radius: 8px; font-size: 1.05rem; background: transparent; border: 2px solid var(--primary-color); color: var(--primary-color); display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                    Create a College
+                </button>
+                
+                <div style="margin-top: 20px; font-size: 0.9rem;">
+                    Admin Login? <a href="/admin" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Click here</a>
+                </div>
+            </div>
+
+            <div id="student-code-section" style="display: none;">
+                <p style="margin-bottom: 20px; color: var(--text-muted);">Please enter your College Code to view your campus events.</p>
+                <form id="college-code-form">
+                    <input type="text" id="college-code-input" placeholder="e.g. ADJ-123" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1.1rem; text-align: center; text-transform: uppercase; margin-bottom: 20px;">
+                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; border-radius: 8px; font-size: 1rem; margin-bottom: 10px;">Enter College</button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('student-code-section').style.display='none'; document.getElementById('initial-choice-section').style.display='block';" style="width: 100%; padding: 10px; border-radius: 8px; font-size: 0.9rem; background: transparent; border: none; color: #666; cursor: pointer; text-decoration: underline;">Back</button>
+                </form>
+                <div id="college-code-error" style="color: #e74c3c; margin-top: 10px; font-size: 0.9rem; display: none;">Invalid College Code. Please try again.</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Deprecated Inline Login Section omitted; rely on dedicated admin_login.html page -->
 
     <footer>
         <p>&copy; 2026 <a href="/admin" class="footer-link">Event Hub</a>. All rights reserved.</p>
     </footer>
 
-    <script src="../static/public_script.js"></script>
+    <script src="{{ url_for('static', filename='public_script.js') }}"></script>
 </body>
 
 </html>
