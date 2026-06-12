@@ -1,6 +1,26 @@
+# Environment & secrets
+.env
+credentials.json
+
+# Python
 venv/
 __pycache__/
-credentials.json
-.env
 *.pyc
+*.pyo
+*.egg-info/
+
+# IDE
 .vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploads (user-generated content)
+static/uploads/*
+!static/uploads/.gitkeep
+
+# Agents / AI tooling
+.agents/
+skills-lock.json

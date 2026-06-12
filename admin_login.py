@@ -1,30 +1,33 @@
 import os
+import re
 import string
 import random
+import logging
 from datetime import datetime, date
+
+from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask_mail import Mail, Message
+from markupsafe import escape
+from supabase import create_client, Client
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-import re
-from markupsafe import escape
-
-from dotenv import load_dotenv
-from supabase import create_client, Client
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", os.urandom(24).hex())
 
-# ===== Official Supabase Client =====
+# ===== Supabase Client =====
 supabase_url: str = os.environ.get("SUPABASE_URL")
 supabase_key: str = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(supabase_url, supabase_key)
 
 # ===== Email Configuration =====
-from flask_mail import Mail, Message
 
 app.config['MAIL_SERVER'] = os.getenv("MAIL_SERVER", "smtp.gmail.com")
 app.config['MAIL_PORT'] = int(os.getenv("MAIL_PORT", 587))
@@ -52,7 +55,7 @@ def extract_sheet_id(sheet_url):
             return match.group(1)
         return None
     except Exception as e:
-        print(f"Error extracting sheet ID: {e}")
+        logger.error(f"Error extracting sheet ID: {e}")
         return None
 
 def generate_random_code(length=6):
@@ -99,17 +102,70 @@ def send_new_event_email(admin_id, event_name, event_date, event_description):
             safe_desc = escape(event_description)
             
             msg.html = f"""
-            <h2>New Event: {safe_name}</h2>
-            <p><strong>Date:</strong> {safe_date}</p>
-            <p>{safe_desc}</p>
-            <br>
-            <p>Visit the EventHub website to learn more and register!</p>
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 20px; border-radius: 10px 10px 0 0; text-align: center;">
+                    <h1 style="color: white; margin: 0;">🎉 New Event Created!</h1>
+                </div>
+                <div style="background: #f9f9f9; padding: 25px; border-radius: 0 0 10px 10px; border: 1px solid #e0e0e0;">
+                    <h2 style="color: #333; margin-top: 0;">{safe_name}</h2>
+                    <p style="color: #555;"><strong>📅 Date:</strong> {safe_date}</p>
+                    <p style="color: #555;"><strong>📝 Description:</strong></p>
+                    <p style="color: #666; background: white; padding: 15px; border-radius: 5px; border-left: 4px solid #11998e;">{safe_desc}</p>
+                    <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
+                    <p style="color: #888; font-size: 12px;">Visit the EventHub website to learn more and register!</p>
+                </div>
+            </div>
             """
             
             mail.send(msg)
             return True
         except Exception as e:
-            print(f"Error sending email notifications: {e}")
+            logger.error(f"Error sending email notifications: {e}")
+            return False
+
+def send_event_update_email(admin_id, event_name, event_date, event_description):
+    """Sends email to subscribers when an event is updated."""
+    with app.app_context():
+        try:
+            response = supabase.table("subscribers").select("email, name").eq("admin_id", admin_id).eq("status", "active").execute()
+            subscribers = response.data
+            
+            if not subscribers:
+                return True
+                
+            recipients = [sub['email'] for sub in subscribers]
+            
+            msg = Message(
+                subject=f"Event Updated: {event_name}",
+                sender=app.config.get("MAIL_USERNAME"),
+                bcc=recipients
+            )
+            
+            safe_name = escape(event_name)
+            safe_date = escape(str(event_date))
+            safe_desc = escape(event_description)
+            
+            msg.html = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px 10px 0 0; text-align: center;">
+                    <h1 style="color: white; margin: 0;">🔔 Event Updated</h1>
+                </div>
+                <div style="background: #f9f9f9; padding: 25px; border-radius: 0 0 10px 10px; border: 1px solid #e0e0e0;">
+                    <h2 style="color: #333; margin-top: 0;">{safe_name}</h2>
+                    <p style="color: #555;"><strong>📅 Date:</strong> {safe_date}</p>
+                    <p style="color: #555;"><strong>📝 Description:</strong></p>
+                    <p style="color: #666; background: white; padding: 15px; border-radius: 5px; border-left: 4px solid #667eea;">{safe_desc}</p>
+                    <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
+                    <p style="color: #888; font-size: 12px;">This event has been updated. Please check the latest details on EventHub.</p>
+                </div>
+            </div>
+            """
+            
+            mail.send(msg)
+            logger.info(f"Update email sent to {len(recipients)} subscribers.")
+            return True
+        except Exception as e:
+            logger.error(f"Error sending update email notifications: {e}")
             return False
 
 # ===== Public Routes =====
@@ -144,7 +200,7 @@ def subscribe():
         err_str = str(e).lower()
         if "duplicate" in err_str or "unique constraint" in err_str:
             return jsonify({"error": "This email is already subscribed to this college."}), 400
-        print(f"Supabase error: {e}")
+        logger.error(f"Supabase error: {e}")
         return jsonify({"error": "An error occurred while subscribing."}), 500
 
 @app.route("/event-details.html")
@@ -204,7 +260,7 @@ def admin_signup():
         flash("Account created successfully! You can now log in.")
         return redirect(url_for("admin_login_page"))
     except Exception as e:
-        print(f"Database error during signup: {e}")
+        logger.error(f"Database error during signup: {e}")
         flash("An error occurred during signup. Please try again.")
         return redirect(url_for("admin_signup"))
 
@@ -234,7 +290,7 @@ def login():
             flash("Incorrect password.")
             return redirect(url_for("admin_login_page"))
     except Exception as e:
-        print(f"Database error during login: {e}")
+        logger.error(f"Database error during login: {e}")
         flash("An error occurred during login. Please try again.")
         return redirect(url_for("admin_login_page"))
 
@@ -258,7 +314,7 @@ def get_colleges():
         response = supabase.table("admin_username_pass").select("username, college_name, college_code").execute()
         return jsonify(response.data)
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
         return jsonify({"error": "Failed to retrieve colleges."}), 500
 
 @app.route("/api/all_events", methods=["GET"])
@@ -271,7 +327,7 @@ def get_all_events():
             event['status'] = get_dynamic_event_status(event['date'])
         return jsonify(events)
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
         return jsonify({"error": "Failed to retrieve events."}), 500
 
 @app.route("/api/events", methods=["GET"])
@@ -303,7 +359,7 @@ def get_events():
             
         return jsonify(events)
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
         return jsonify({"error": "Failed to retrieve events."}), 500
 
 @app.route("/api/events", methods=["POST"])
@@ -346,11 +402,11 @@ def create_event():
         try:
             send_new_event_email(session["admin_id"], name, date, description)
         except Exception as email_err:
-            print(f"Failed to send email updates: {email_err}")
+            logger.warning(f"Failed to send email updates: {email_err}")
         
         return jsonify({"success": True, "message": "Event created", "id": new_id})
     except Exception as e:
-        print(f"Server error: {e}")
+        logger.error(f"Server error: {e}")
         return jsonify({"error": "An unexpected error occurred."}), 500
 
 @app.route("/api/events/<int:id>", methods=["PUT"])
@@ -394,9 +450,15 @@ def update_event(id):
         
         supabase.table("events").update(data).eq("id", id).execute()
         
+        # Send update notification email to subscribers
+        try:
+            send_event_update_email(session["admin_id"], name, date, description)
+        except Exception as email_err:
+            logger.warning(f"Failed to send update email: {email_err}")
+        
         return jsonify({"success": True, "message": "Event updated"})
     except Exception as e:
-        print(f"Server error: {e}")
+        logger.error(f"Server error: {e}")
         return jsonify({"error": "An unexpected error occurred."}), 500
 
 @app.route("/api/events/<int:id>", methods=["DELETE"])
@@ -420,11 +482,11 @@ def delete_event(id):
                 try:
                     os.remove(image_file)
                 except OSError as file_err:
-                    print(f"Warning: Could not delete image file {image_file}: {file_err}")
+                    logger.warning(f" Could not delete image file {image_file}: {file_err}")
                     
         return jsonify({"success": True, "message": "Event deleted"})
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
         return jsonify({"error": "Failed to delete event."}), 500
 
 # ===== API Student Routes =====
@@ -442,7 +504,7 @@ def get_students(event_id):
         response = supabase.table("event_registrations").select("*").eq("event_id", event_id).order("id", desc=True).execute()
         return jsonify(response.data)
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
         return jsonify({"error": "Failed to retrieve students."}), 500
 
 @app.route("/api/events/<int:event_id>/sync_students", methods=["POST"])
@@ -522,7 +584,7 @@ def sync_students(event_id):
         return jsonify({"success": True, "message": f"Successfully synced {added_count} new students!", "added": added_count})
         
     except Exception as ex:
-        print(f"Server error: {ex}")
+        logger.error(f"Server error: {ex}")
         return jsonify({"error": "An unexpected error occurred during sync."}), 500
 
 @app.route("/api/events/<int:event_id>/students", methods=["POST"])
@@ -547,7 +609,7 @@ def add_student(event_id):
         new_id = response.data[0]['id'] if response.data else None
         return jsonify({"success": True, "message": "Student added", "id": new_id})
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
         return jsonify({"error": "Failed to add student."}), 500
 
 @app.route("/api/students/batch_attendance", methods=["PUT"])
@@ -567,7 +629,7 @@ def batch_update_attendance():
             
         return jsonify({"success": True, "message": f"Successfully updated {len(updates)} records"})
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
         return jsonify({"error": "Failed to update attendance."}), 500
 
 @app.route("/api/students/<int:student_id>", methods=["DELETE"])
@@ -579,7 +641,7 @@ def delete_student(student_id):
         supabase.table("event_registrations").delete().eq("id", student_id).execute()
         return jsonify({"success": True, "message": "Student removed"})
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
         return jsonify({"error": "Failed to remove student."}), 500
 
 # ===== API Reports Routes =====
@@ -612,7 +674,7 @@ def get_reports():
         
         return jsonify(reports)
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
         return jsonify({"error": "Failed to retrieve reports."}), 500
 
 # ===== Settings API =====
@@ -651,7 +713,7 @@ def update_credentials():
         return jsonify({"success": True, "message": "Credentials updated"})
         
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
         return jsonify({"error": "Failed to update credentials."}), 500
 
 if __name__ == "__main__":
